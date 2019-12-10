@@ -1,0 +1,5 @@
+credentials.py
+*.bak
+__pycache__
+old/
+wxglade_out.py
