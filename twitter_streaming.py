@@ -10,21 +10,28 @@ import simplejson as json
 import re
 
 import wx
+import wx.lib.agw.ultimatelistctrl as ULC
+import wx.lib.agw.hyperlink as hl
 
-# access_token
-# access_token_secret
-# consumer_key
-# consumer_secret
-from .credentials import *
+import webbrowser
 
-app_running = True
-all_names = set([""])
+from credentials import access_token, access_token_secret, consumer_key, consumer_secret
+
+
+def open_browser(event):
+    print(type(event), type(event.GetItem()))
+    li = event.GetItem()
+    print(event.GetIndex(), li.GetColumn(), li.GetId(), li.GetPyData())
+    url = event.GetItem().GetText()
+    if len(url) > 8:
+        webbrowser.open_new(url)
 
 
 # This is a basic listener that just prints received tweets to stdout.
 class StdOutListener(StreamListener):
     def set_wx(self, master):
         self.master = master
+        self.hyperlinks = {}
 
     def on_data(self, data):
         data_json = json.loads(data)
@@ -41,19 +48,29 @@ class StdOutListener(StreamListener):
             )
 
             out_user = data_json["user"]["screen_name"]
-            out_content = ftext
+            ftext_c = ftext.rfind("https://t.co")
+            out_content = ftext[:ftext_c]
+            out_link = ftext[ftext_c:]
+
             out_text = "[{}] {}".format(out_user, out_content)
             print(out_text)
-            self.master.list_ctrl_1.Append(("", str(out_user), str(out_content)))
-            new_names = re.findall("@\w+", ftext)
-            global all_names
-            all_names |= set(new_names)
-            # print(all_names)
+            lcon = self.master.list_ctrl_1
 
-        if app_running:
-            return True
-        else:
-            return False
+            # wxh = hl.HyperLinkCtrl(lcon, -1, out_link, URL=out_link)
+            index = lcon.InsertStringItem(sys.maxsize, "")
+            if len(out_link) > 8:
+                lcon.SetStringItem(index, 0, out_link)
+                lcon.SetItemHyperText(index, 0)
+            lcon.SetStringItem(index, 1, out_user)
+            lcon.SetStringItem(index, 2, out_content)
+
+            lcon.Bind(wx.EVT_LIST_ITEM_SELECTED, open_browser)
+
+            # new_names = re.findall("@\w+", ftext)
+            # global all_names
+            # all_names |= set(new_names)
+
+        return True
 
     def on_error(self, status):
         print(status)
@@ -77,11 +94,20 @@ class MyFrame(wx.Frame):
         self.text_ctrl_1 = wx.TextCtrl(self.window_1_pane_1, wx.ID_ANY, "")
         self.button_1 = wx.Button(self.window_1_pane_1, wx.ID_ANY, "Add label")
         self.window_1_pane_2 = wx.Panel(self, wx.ID_ANY)
-        self.list_ctrl_1 = wx.ListCtrl(
-            self.window_1_pane_2, wx.ID_ANY, style=wx.LC_HRULES | wx.LC_REPORT | wx.LC_VRULES
+        # self.list_ctrl_1 = wx.ListCtrl(
+        #     self.window_1_pane_2, wx.ID_ANY, style=wx.LC_HRULES | wx.LC_REPORT | wx.LC_VRULES
+        # )
+        self.list_ctrl_1 = ULC.UltimateListCtrl(
+            self.window_1_pane_2,
+            wx.ID_ANY,
+            agwStyle=ULC.ULC_REPORT
+            | ULC.ULC_VRULES
+            | ULC.ULC_HRULES
+            | ULC.ULC_SINGLE_SEL
+            | ULC.ULC_HAS_VARIABLE_ROW_HEIGHT,
         )
         self.list_box_1 = wx.ListBox(
-            self.window_1_pane_2, wx.ID_ANY, choices=["#btc", "cryptocurrency"]
+            self.window_1_pane_2, wx.ID_ANY, choices=["#btc", "crypto", "currency"]
         )
         self.panel_1 = wx.Panel(self, wx.ID_ANY)
         self.button_2 = wx.Button(self.panel_1, wx.ID_ANY, "Refresh labels")
@@ -92,15 +118,16 @@ class MyFrame(wx.Frame):
         self.Bind(wx.EVT_BUTTON, self.insert_label, self.button_1)
         self.Bind(wx.EVT_LISTBOX_DCLICK, self.remove_label, self.list_box_1)
         self.Bind(wx.EVT_BUTTON, self.refresh_labels, self.button_2)
+        # self.Bind(wx.EVT_HYPERLINK, self.open_browser, self.list_ctrl_1)
         self.stream = None
         # end wxGlade
 
     def __set_properties(self):
         # begin wxGlade: MyFrame.__set_properties
-        self.SetTitle("frame")
-        self.list_ctrl_1.AppendColumn("Time", format=wx.LIST_FORMAT_LEFT, width=-1)
-        self.list_ctrl_1.AppendColumn("Name", format=wx.LIST_FORMAT_LEFT, width=-1)
-        self.list_ctrl_1.AppendColumn("Content", format=wx.LIST_FORMAT_LEFT, width=210)
+        self.SetTitle("Twitter scraper")
+        self.list_ctrl_1.InsertColumn(0, "Time", format=wx.LIST_FORMAT_LEFT, width=-1)
+        self.list_ctrl_1.InsertColumn(1, "Name", format=wx.LIST_FORMAT_LEFT, width=-1)
+        self.list_ctrl_1.InsertColumn(2, "Content", format=wx.LIST_FORMAT_LEFT, width=210)
         # end wxGlade
 
     def __do_layout(self):
@@ -171,4 +198,5 @@ def wxapp():
 # end of class MyApp
 
 if __name__ == "__main__":
+    # webbrowser.open_new("google.com")
     wxapp()

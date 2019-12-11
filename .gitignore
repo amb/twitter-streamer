@@ -3,3 +3,4 @@ credentials.py
 __pycache__
 old/
 wxglade_out.py
+test*.py
